@@ -15,15 +15,14 @@ Ensure you have the following installed on your system:
 - [MongoDB](https://www.mongodb.com/) 
 - [Git](https://git-scm.com/)
 
-## Demo Video
-[![Watch the video](https://img.youtube.com/vi/EJHRTrSXjNk/0.jpg)](https://youtu.be/EJHRTrSXjNk)
+
 
 ## Installation and Setup
 
 ### 1. Clone the Repository
 ```sh
-git clone https://github.com/mihadcse/Secure_Task_Management_System.git
-cd Secure_Task_Management_System
+git clone https://github.com/shivammandlik/Task_Management_system.git
+cd Task_Management_system
 ```
 
 ### 2. Setup Backend (Express.js & MongoDB)
@@ -63,6 +62,5 @@ The React frontend should now be running on `http://localhost:3000`.
 - Manage tasks efficiently with security-enhanced authentication.
 
 ## Created By
-- Syed Huzzatullah Mihad
-- CSE-2 ID-210041218
+- shivam mandlik
 
