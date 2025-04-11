@@ -1,143 +1,282 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router";
+import Axios from "axios";
+import { Link, useNavigate } from "react-router-dom";
+
+const API_URL = "http://localhost:5000/api/dashboard";
 
 const AdminDashboard = () => {
-  const [users, setUsers] = useState([]);
-  const [totalUsers, setTotalUsers] = useState(0);
+  const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [error, setError] = useState("");
-  const [showTasks, setShowTasks] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+
+  const [editTask, setEditTask] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editPriority, setEditPriority] = useState("");
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    const isAdminLoggedIn = localStorage.getItem("admin_logged_in");
-    if (!isAdminLoggedIn) {
-      navigate("/admin");
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
       return;
     }
 
-    const fetchUsersAndTasks = async () => {
-      try {
-        const [usersRes, tasksRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/admin/users"),
-          axios.get("http://localhost:5000/api/admin/tasks"),
-        ]);
-        setUsers(usersRes.data.users);
-        setTotalUsers(usersRes.data.users.length);
-        setTasks(tasksRes.data.tasks);
-      } catch (err) {
-        setError("Failed to fetch data.");
-      }
-    };
-
-    fetchUsersAndTasks();
+    Axios.get(API_URL, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        setUser(res.data.user);
+        setTasks(res.data.tasks);
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        navigate("/login");
+      });
   }, [navigate]);
 
+  const handleDeleteTask = async (id) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      await Axios.delete(`http://localhost:5000/api/tasks/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTasks(tasks.filter((t) => t._id !== id));
+      alert("Task deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting task", err);
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const res = await Axios.put(
+        `http://localhost:5000/api/tasks/${editTask._id}`,
+        {
+          title: editTitle,
+          description: editDescription,
+          dueDate: editDueDate,
+          priority: editPriority,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setTasks(
+        tasks.map((task) =>
+          task._id === editTask._id ? res.data.task : task
+        )
+      );
+      setEditTask(null);
+      alert("Task updated successfully!");
+    } catch (err) {
+      console.error("Error updating task", err);
+    }
+  };
+
+  const filteredTasks = tasks.filter(
+    (task) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (priorityFilter === "All" || task.priority === priorityFilter)
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-100 to-white p-4 overflow-auto">
-      <div className="max-w-6xl mx-auto p-6 bg-white shadow-2xl rounded-xl">
-        <h1 className="text-4xl font-extrabold text-center mb-2 text-cyan-800">
-          Welcome Admin!
-        </h1>
-        <h2 className="text-2xl font-bold mb-6 text-center text-cyan-600">
-          Dashboard
-        </h2>
+    <div className="container mx-auto px-4 py-6">
+      {user ? (
+        <>
+          <h1 className="text-3xl font-bold mb-2">Welcome, {user.name}!</h1>
+          <p className="text-lg text-gray-600 mb-6">Email: {user.email}</p>
 
-        {error && <p className="text-red-500 text-center">{error}</p>}
-
-        <p className="mb-6 font-semibold text-2xl text-cyan-700 text-center">
-          Total Users: {totalUsers}
-        </p>
-
-        {/* USERS TABLE */}
-        <div className="overflow-x-auto mb-8">
-          <table className="min-w-full bg-white border border-gray-300 rounded-lg">
-            <thead>
-              <tr className="bg-cyan-600 text-white">
-                <th className="py-2 px-4 border">Name</th>
-                <th className="py-2 px-4 border">Email</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user._id} className="border-b hover:bg-gray-50">
-                  <td className="py-2 px-4 border">{user.name}</td>
-                  <td className="py-2 px-4 border">{user.email}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* TOGGLE BUTTON */}
-        <div className="text-center mb-6">
-          <button
-            onClick={() => setShowTasks(!showTasks)}
-            className="bg-cyan-700 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-cyan-800 transition"
-          >
-            {showTasks ? "Hide All Tasks" : "Show All Tasks"}
-          </button>
-        </div>
-
-        {/* TASKS SECTION */}
-        {showTasks && (
-          <div className="bg-gradient-to-b from-cyan-50 to-white p-6 rounded-xl shadow-inner border border-cyan-300">
-            <h2 className="text-3xl font-bold mb-6 text-center text-cyan-800 underline decoration-cyan-400">
-              All User Tasks
-            </h2>
-
-            {tasks.length === 0 ? (
-              <p className="text-center text-gray-500 text-lg">No tasks available.</p>
-            ) : (
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[600px] overflow-y-auto pr-2">
-                {tasks.map((task) => (
-                  <li
-                    key={task._id}
-                    className="border p-5 rounded-xl shadow-lg bg-white border-cyan-400 hover:shadow-xl transition-all duration-200"
-                  >
-                    <h3 className="text-xl font-bold text-cyan-700 mb-2">
-                      {task.title}
-                    </h3>
-                    <p className="text-gray-800 mb-1">{task.description}</p>
-                    <p className="text-sm text-blue-700 font-semibold mb-1">
-                      Due: {new Date(task.dueDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-700 mb-1">
-                      Priority:{" "}
-                      <span
-                        className={`font-semibold ${
-                          task.priority === "High"
-                            ? "text-red-600"
-                            : task.priority === "Medium"
-                            ? "text-yellow-600"
-                            : "text-green-600"
-                        }`}
-                      >
-                        {task.priority}
-                      </span>
-                    </p>
-                    <p className="text-sm mb-1">
-                      Status:{" "}
-                      <span
-                        className={`font-semibold ${
-                          task.completed ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {task.completed ? "Completed" : "Pending"}
-                      </span>
-                    </p>
-                    <p className="text-sm text-gray-700 mt-2">
-                      Assigned to: <strong>{task.user.name}</strong> (
-                      {task.user.email})
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="mb-6">
+            <Link
+              to="/add-task"
+              className="bg-cyan-600 text-white font-bold py-2 px-4 rounded hover:bg-cyan-800"
+            >
+              + Add Task
+            </Link>
           </div>
-        )}
-      </div>
+
+          {/* Search and Filter */}
+          <div className="mb-4 flex space-x-4">
+            <input
+              type="text"
+              placeholder="Search tasks"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border px-3 py-1 rounded border-cyan-600"
+            />
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="border px-3 py-1 rounded border-cyan-600"
+            >
+              <option value="All">All</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+
+          {/* Task Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border border-cyan-600">
+              <thead>
+                <tr className="bg-cyan-100 text-left">
+                  <th className="border px-4 py-2">Title</th>
+                  <th className="border px-4 py-2">Description</th>
+                  <th className="border px-4 py-2">Due Date</th>
+                  <th className="border px-4 py-2">Priority</th>
+                  <th className="border px-4 py-2">Completed</th>
+                  {user.role === "admin" && (
+                    <th className="border px-4 py-2">User Email</th>
+                  )}
+                  <th className="border px-4 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTasks.length > 0 ? (
+                  filteredTasks.map((task) => (
+                    <tr key={task._id} className="hover:bg-cyan-50">
+                      {editTask && editTask._id === task._id ? (
+                        <>
+                          <td className="border px-4 py-2">
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) =>
+                                setEditTitle(e.target.value)
+                              }
+                              className="w-full border rounded px-2 py-1"
+                            />
+                          </td>
+                          <td className="border px-4 py-2">
+                            <input
+                              type="text"
+                              value={editDescription}
+                              onChange={(e) =>
+                                setEditDescription(e.target.value)
+                              }
+                              className="w-full border rounded px-2 py-1"
+                            />
+                          </td>
+                          <td className="border px-4 py-2">
+                            <input
+                              type="date"
+                              value={editDueDate}
+                              onChange={(e) =>
+                                setEditDueDate(e.target.value)
+                              }
+                              className="w-full border rounded px-2 py-1"
+                            />
+                          </td>
+                          <td className="border px-4 py-2">
+                            <select
+                              value={editPriority}
+                              onChange={(e) =>
+                                setEditPriority(e.target.value)
+                              }
+                              className="w-full border rounded px-2 py-1"
+                            >
+                              <option value="Low">Low</option>
+                              <option value="Medium">Medium</option>
+                              <option value="High">High</option>
+                            </select>
+                          </td>
+                          <td className="border px-4 py-2">
+                            {task.completed ? "Yes" : "No"}
+                          </td>
+                          {user.role === "admin" && (
+                            <td className="border px-4 py-2">
+                              {task.userId?.email || "Unknown"}
+                            </td>
+                          )}
+                          <td className="border px-4 py-2 space-x-2">
+                            <button
+                              onClick={handleUpdateTask}
+                              className="bg-blue-500 text-white px-2 py-1 rounded"
+                            >
+                              Update
+                            </button>
+                            <button
+                              onClick={() => setEditTask(null)}
+                              className="bg-gray-500 text-white px-2 py-1 rounded"
+                            >
+                              Cancel
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="border px-4 py-2">{task.title}</td>
+                          <td className="border px-4 py-2">{task.description}</td>
+                          <td className="border px-4 py-2">
+                            {new Date(task.dueDate).toLocaleDateString()}
+                          </td>
+                          <td className="border px-4 py-2">{task.priority}</td>
+                          <td className="border px-4 py-2">
+                            {task.completed ? "Yes" : "No"}
+                          </td>
+                          {user.role === "admin" && (
+                            <td className="border px-4 py-2">
+                              {task.userId?.email || "Unknown"}
+                            </td>
+                          )}
+                          <td className="border px-4 py-2 space-x-2">
+                            <button
+                              onClick={() => {
+                                setEditTask(task);
+                                setEditTitle(task.title);
+                                setEditDescription(task.description);
+                                setEditDueDate(task.dueDate.split("T")[0]);
+                                setEditPriority(task.priority);
+                              }}
+                              className="bg-blue-500 text-white px-2 py-1 rounded"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task._id)}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={user.role === "admin" ? "7" : "6"}
+                      className="text-center text-gray-600 py-4"
+                    >
+                      No tasks found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <p>Loading...</p>
+      )}
     </div>
   );
 };

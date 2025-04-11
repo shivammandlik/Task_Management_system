@@ -63,6 +63,6 @@ The React frontend should now be running on `http://localhost:3000`.
 - Manage tasks efficiently with security-enhanced authentication.
 
 ## Created By
-- Syed Huzzatullah Mihad
+- shivam mandlik
 - CSE-2 ID-210041218
 

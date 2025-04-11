@@ -26,7 +26,13 @@ const taskSchema = new mongoose.Schema({
     },
     completed: {
         type: Boolean,
-        default: false, // Initially not completed
+        default: false,
+    },
+    createdBy: {
+        type: String,
+        enum: ["admin", "user"],
+        required: true,
+        default: "user",
     },
 }, { timestamps: true });
 
